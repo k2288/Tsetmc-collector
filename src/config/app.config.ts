@@ -7,5 +7,6 @@ export default () => ({
   providerRetryBaseDelayMs: Number(process.env.PROVIDER_RETRY_BASE_DELAY_MS ?? 200),
   pipelineVersion: process.env.PIPELINE_VERSION ?? 'phase1-v1',
   schemaVersion: process.env.SCHEMA_VERSION ?? '1.0.0',
-  redisUrl: process.env.REDIS_URL ?? 'redis://localhost:6379'
+  redisUrl: process.env.REDIS_URL ?? 'redis://localhost:6379',
+  ingestionQueueMaxSize: Number(process.env.INGESTION_QUEUE_MAX_SIZE ?? 2000)
 });
