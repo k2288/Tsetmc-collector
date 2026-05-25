@@ -5,9 +5,9 @@ import { MarketSnapshot, MoneyFlowSnapshot } from '../models/market-data.models'
 @Injectable()
 export class TseClientProvider implements MarketDataProvider {
   readonly providerName = 'tse-client';
+  readonly providerVersion = 'tse-client-v1';
 
   async fetchMarketWatch(): Promise<MarketSnapshot[]> {
-    // Provider adapter boundary: replace with exact tse-client API calls in production.
     return [];
   }
 

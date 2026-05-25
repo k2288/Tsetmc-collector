@@ -19,4 +19,19 @@ export class StorageService {
       }
     });
   }
+
+  async quarantineFailure(rawPayloadId: string, providerName: string, stage: string, reason: string, payload: unknown, err?: unknown) {
+    const stackTrace = err instanceof Error ? err.stack : String(err ?? '');
+    await this.prisma.deadLetterPayload.create({
+      data: {
+        rawPayloadId,
+        providerName,
+        failureStage: stage,
+        failureReason: reason,
+        payloadJson: payload as Prisma.InputJsonValue,
+        stackTrace
+      }
+    });
+    await this.prisma.rawApiPayload.update({ where: { id: rawPayloadId }, data: { processingStatus: ProcessingStatus.FAILED } });
+  }
 }
