@@ -15,6 +15,12 @@ export class MetricsService {
   readonly dedupHitRate: Counter<string>;
   readonly replayOrderingGap: Counter<string>;
   readonly overloadCounter: Counter<string>;
+  readonly anomalyRate: Counter<string>;
+  readonly validationFailures: Counter<string>;
+  readonly replayDivergence: Counter<string>;
+  readonly qualityScoreDistribution: Histogram<string>;
+  readonly reprocessingLatencyMs: Histogram<string>;
+  readonly lifecycleTransitionCount: Counter<string>;
 
   constructor() {
     collectDefaultMetrics({ register: this.registry });
@@ -29,5 +35,11 @@ export class MetricsService {
     this.dedupHitRate = new Counter({ name: 'deduplication_hits_total', help: 'Deduplication hits', labelNames: ['provider', 'stream'], registers: [this.registry] });
     this.replayOrderingGap = new Counter({ name: 'replay_ordering_gap_total', help: 'Sequence gaps', labelNames: ['provider'], registers: [this.registry] });
     this.overloadCounter = new Counter({ name: 'load_shedding_total', help: 'Overload count', labelNames: ['provider', 'policy'], registers: [this.registry] });
+    this.anomalyRate = new Counter({ name: 'anomaly_events_total', help: 'Anomaly events', labelNames: ['provider', 'anomaly_type', 'severity'], registers: [this.registry] });
+    this.validationFailures = new Counter({ name: 'validation_failures_total', help: 'Validation failures', labelNames: ['provider', 'stream'], registers: [this.registry] });
+    this.replayDivergence = new Counter({ name: 'replay_divergence_total', help: 'Replay divergence count', labelNames: ['provider'], registers: [this.registry] });
+    this.qualityScoreDistribution = new Histogram({ name: 'quality_score_distribution', help: 'Quality score distribution', labelNames: ['provider', 'stream'], buckets: [0, 20, 40, 60, 80, 100], registers: [this.registry] });
+    this.reprocessingLatencyMs = new Histogram({ name: 'reprocessing_latency_ms', help: 'Reprocessing latency in ms', labelNames: ['provider'], buckets: [10, 50, 100, 500, 1000, 5000], registers: [this.registry] });
+    this.lifecycleTransitionCount = new Counter({ name: 'lifecycle_transitions_total', help: 'Lifecycle transitions', labelNames: ['provider', 'from_state', 'to_state'], registers: [this.registry] });
   }
 }

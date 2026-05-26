@@ -1,9 +1,14 @@
 export interface QualityAssessment {
   qualityScore: number;
   qualityFlags: string[];
+  validityState?: string;
+  validationReason?: string;
+  providerLatencyMs?: number;
+  stalenessScore?: number;
 }
 
 export interface MarketSnapshot {
+  [key: string]: unknown;
   tsetmcId: string;
   symbol: string;
   timestampUtc: Date;
@@ -23,6 +28,7 @@ export interface MarketSnapshot {
 }
 
 export interface MoneyFlowSnapshot {
+  [key: string]: unknown;
   tsetmcId: string;
   symbol: string;
   timestampUtc: Date;

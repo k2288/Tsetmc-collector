@@ -11,6 +11,11 @@ import { NormalizerService } from './normalizer/normalizer.service';
 import { DeduplicationService } from './deduplication/deduplication.service';
 import { MetricsService } from './metrics/metrics.service';
 import { HealthController } from './health/health.controller';
+import { ValidationEngineService } from './integrity/validation-engine.service';
+import { CorporateActionService } from './integrity/corporate-action.service';
+import { LifecycleEngineService } from './integrity/lifecycle-engine.service';
+import { CanonicalTimelineService } from './integrity/canonical-timeline.service';
+import { ReprocessingService } from './reprocessing/reprocessing.service';
 
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true, load: [appConfig] }), ScheduleModule.forRoot()],
@@ -23,7 +28,12 @@ import { HealthController } from './health/health.controller';
     StorageService,
     NormalizerService,
     DeduplicationService,
-    MetricsService
+    MetricsService,
+    ValidationEngineService,
+    CorporateActionService,
+    LifecycleEngineService,
+    CanonicalTimelineService,
+    ReprocessingService
   ]
 })
 export class AppModule {}

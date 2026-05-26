@@ -1,35 +1,36 @@
-# TSETMC Collector - Phase 1
+# TSETMC Collector - Phase 2 (Data Integrity + Market Normalization)
 
-Production-grade market data infrastructure for Tehran Stock Exchange ingestion.
+Phase 2 extends the production ingestion stack with deterministic, replay-safe market integrity infrastructure.
 
-## Architecture
-Provider -> Raw Archive -> Normalizer -> Validator (implicit in normalizer) -> Deduplicator -> Persistence.
+## Updated Architecture
 
-## Key properties
-- Provider abstraction (`MarketDataProvider`)
-- Immutable raw payload archive
-- Replay-safe normalized snapshots
-- SHA256 ingestion deduplication
-- Observability via `/health` and `/metrics`
-- Retry with exponential backoff + timeout guards
+Provider -> Raw Archive -> Forward-Compatible Normalizer -> Validation Engine -> Anomaly Journal -> Deduplicator -> Persistence -> Canonical Timeline + Reprocessing.
 
-## Run
-```bash
-cp .env.example .env
-npm install
-npm run prisma:generate
-npm run build
-npm start
-```
+## Phase 2 capabilities
 
-## Docker
-```bash
-docker compose up --build
-```
+- Rule-driven validation engine (`validity_state`, `quality_flags`, `validation_reason`).
+- Corporate action infrastructure with versioned adjustment chain support.
+- Instrument lifecycle state transition model and event journaling.
+- Canonical market timeline with deterministic gap markers.
+- Quantitative data quality scoring (`quality_score`, `provider_latency_ms`, `staleness_score`).
+- Reprocessing engine for deterministic historical reconstruction.
+- End-to-end lineage fields for raw-payload provenance.
+- Anomaly events journal (never silent discard).
+- Market calendar enriched for special sessions and abnormal conditions.
+- Historical consistency validation hooks through stress tests.
 
-## Stress Tests
-Run:
+## Schema additions
+
+- `corporate_actions`
+- `instrument_lifecycle_events`
+- `anomaly_events`
+- `canonical_market_timeline`
+- validation + lineage columns on snapshot tables
+
+## Stress tests
+
 ```bash
 npm run test:stress
 ```
-Scenarios included: duplicate storms, out-of-order timestamps, provider partial failure, corrupted payloads, DB slowness, burst traffic, provider timeout.
+
+Includes malformed replay, lifecycle integrity, adjustment correctness, gap reconstruction, stale floods, and deterministic reprocessing.

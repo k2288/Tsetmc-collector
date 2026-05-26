@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
   extensions = [timescaledb(schema: "public")]
 }
 
@@ -13,6 +13,20 @@ enum ProcessingStatus {
   NORMALIZED
   PERSISTED
   FAILED
+}
+
+enum ValidityState {
+  VALID
+  WARNING
+  INVALID
+}
+
+enum LifecycleState {
+  ACTIVE
+  HALTED
+  SUSPENDED
+  REOPENED
+  DELISTED
 }
 
 model Instrument {
@@ -27,128 +41,65 @@ model Instrument {
   delistingDate DateTime? @map("delisting_date") @db.Date
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
-
   marketSnapshots    MarketSnapshot[]
   moneyFlowSnapshots MoneyFlowSnapshot[]
   aliases            InstrumentAlias[]
-
+  corporateActions   CorporateAction[]
+  lifecycleEvents    InstrumentLifecycleEvent[]
+  timelinePoints     CanonicalMarketTimeline[]
+  anomalyEvents      AnomalyEvent[]
   @@index([symbol])
   @@map("instruments")
 }
 
-model RawApiPayload {
-  id              String           @id @default(uuid()) @db.Uuid
-  providerName    String           @map("provider_name")
-  endpoint        String
-  fetchedAtUtc    DateTime         @map("fetched_at_utc") @db.Timestamptz
-  payloadJson     Json             @map("payload_json")
-  payloadHashSha256 String         @map("payload_hash_sha256")
-  statusCode      Int?             @map("status_code")
-  processingStatus ProcessingStatus @default(RECEIVED) @map("processing_status")
-  createdAt       DateTime         @default(now()) @map("created_at")
-  deadLetters     DeadLetterPayload[]
-
-  @@index([providerName, endpoint, fetchedAtUtc])
-  @@index([payloadHashSha256])
-  @@map("raw_api_payloads")
-}
+model RawApiPayload { id String @id @default(uuid()) @db.Uuid providerName String @map("provider_name") endpoint String fetchedAtUtc DateTime @map("fetched_at_utc") @db.Timestamptz payloadJson Json @map("payload_json") payloadHashSha256 String @map("payload_hash_sha256") statusCode Int? @map("status_code") processingStatus ProcessingStatus @default(RECEIVED) @map("processing_status") createdAt DateTime @default(now()) @map("created_at") deadLetters DeadLetterPayload[] anomalyEvents AnomalyEvent[] @@index([providerName, endpoint, fetchedAtUtc]) @@index([payloadHashSha256]) @@map("raw_api_payloads") }
 
 model MarketSnapshot {
-  id             String   @id @default(uuid()) @db.Uuid
-  instrumentId   String   @map("instrument_id") @db.Uuid
-  timestampUtc   DateTime @map("timestamp_utc") @db.Timestamptz
+  id String @id @default(uuid()) @db.Uuid
+  instrumentId String @map("instrument_id") @db.Uuid
+  timestampUtc DateTime @map("timestamp_utc") @db.Timestamptz
   providerTimestampUtc DateTime @map("provider_timestamp_utc") @db.Timestamptz
-  ingestedAtUtc  DateTime @map("ingested_at_utc") @db.Timestamptz
+  ingestedAtUtc DateTime @map("ingested_at_utc") @db.Timestamptz
   ingestionSequence BigInt @unique @map("ingestion_sequence")
   providerVersion String @map("provider_version")
   normalizerVersion String @map("normalizer_version")
-  qualityScore   Decimal @default(1) @map("quality_score") @db.Decimal(5,4)
-  qualityFlags   String[] @default([]) @map("quality_flags")
-  openPrice      Decimal? @map("open_price") @db.Decimal(20, 4)
-  highPrice      Decimal? @map("high_price") @db.Decimal(20, 4)
-  lowPrice       Decimal? @map("low_price") @db.Decimal(20, 4)
-  closePrice     Decimal? @map("close_price") @db.Decimal(20, 4)
-  lastPrice      Decimal? @map("last_price") @db.Decimal(20, 4)
-  volume         BigInt?
-  valueTraded    Decimal? @map("value_traded") @db.Decimal(28, 4)
-  tradeCount     Int?     @map("trade_count")
-  bidPrice       Decimal? @map("bid_price") @db.Decimal(20, 4)
-  askPrice       Decimal? @map("ask_price") @db.Decimal(20, 4)
-  bidVolume      BigInt?  @map("bid_volume")
-  askVolume      BigInt?  @map("ask_volume")
+  validationVersion String @default("validation-v1") @map("validation_version")
+  validityState ValidityState @default(VALID) @map("validity_state")
+  validationReason String? @map("validation_reason")
+  providerLatencyMs Int @default(0) @map("provider_latency_ms")
+  stalenessScore Int @default(0) @map("staleness_score")
+  lineageRawPayloadId String? @map("lineage_raw_payload_id") @db.Uuid
+  qualityScore Decimal @default(100) @map("quality_score") @db.Decimal(5,2)
+  qualityFlags String[] @default([]) @map("quality_flags")
+  openPrice Decimal? @map("open_price") @db.Decimal(20, 4)
+  highPrice Decimal? @map("high_price") @db.Decimal(20, 4)
+  lowPrice Decimal? @map("low_price") @db.Decimal(20, 4)
+  closePrice Decimal? @map("close_price") @db.Decimal(20, 4)
+  lastPrice Decimal? @map("last_price") @db.Decimal(20, 4)
+  volume BigInt?
+  valueTraded Decimal? @map("value_traded") @db.Decimal(28, 4)
+  tradeCount Int? @map("trade_count")
+  bidPrice Decimal? @map("bid_price") @db.Decimal(20, 4)
+  askPrice Decimal? @map("ask_price") @db.Decimal(20, 4)
+  bidVolume BigInt? @map("bid_volume")
+  askVolume BigInt? @map("ask_volume")
   queueImbalance Decimal? @map("queue_imbalance") @db.Decimal(12, 6)
-  schemaVersion  String   @map("schema_version")
-  pipelineVersion String  @map("pipeline_version")
-  ingestionHash  String   @unique @map("ingestion_hash")
-  createdAt      DateTime @default(now()) @map("created_at")
-  instrument     Instrument @relation(fields: [instrumentId], references: [id], onDelete: Restrict)
+  schemaVersion String @map("schema_version")
+  pipelineVersion String @map("pipeline_version")
+  ingestionHash String @unique @map("ingestion_hash")
+  createdAt DateTime @default(now()) @map("created_at")
+  instrument Instrument @relation(fields: [instrumentId], references: [id], onDelete: Restrict)
   @@index([instrumentId, timestampUtc])
   @@map("market_snapshots")
 }
 
-model MoneyFlowSnapshot {
-  id               String   @id @default(uuid()) @db.Uuid
-  instrumentId     String   @map("instrument_id") @db.Uuid
-  timestampUtc     DateTime @map("timestamp_utc") @db.Timestamptz
-  providerTimestampUtc DateTime @map("provider_timestamp_utc") @db.Timestamptz
-  ingestedAtUtc    DateTime @map("ingested_at_utc") @db.Timestamptz
-  ingestionSequence BigInt @unique @map("ingestion_sequence")
-  providerVersion String @map("provider_version")
-  normalizerVersion String @map("normalizer_version")
-  qualityScore   Decimal @default(1) @map("quality_score") @db.Decimal(5,4)
-  qualityFlags   String[] @default([]) @map("quality_flags")
-  realBuyVolume    BigInt?  @map("real_buy_volume")
-  realSellVolume   BigInt?  @map("real_sell_volume")
-  legalBuyVolume   BigInt?  @map("legal_buy_volume")
-  legalSellVolume  BigInt?  @map("legal_sell_volume")
-  realBuyerCount   Int?     @map("real_buyer_count")
-  realSellerCount  Int?     @map("real_seller_count")
-  averageBuyPower  Decimal? @map("average_buy_power") @db.Decimal(18, 6)
-  schemaVersion    String   @map("schema_version")
-  pipelineVersion  String   @map("pipeline_version")
-  ingestionHash    String   @unique @map("ingestion_hash")
-  createdAt        DateTime @default(now()) @map("created_at")
-  instrument       Instrument @relation(fields: [instrumentId], references: [id], onDelete: Restrict)
-  @@index([instrumentId, timestampUtc])
-  @@map("money_flow_snapshots")
-}
+model MoneyFlowSnapshot { id String @id @default(uuid()) @db.Uuid instrumentId String @map("instrument_id") @db.Uuid timestampUtc DateTime @map("timestamp_utc") @db.Timestamptz providerTimestampUtc DateTime @map("provider_timestamp_utc") @db.Timestamptz ingestedAtUtc DateTime @map("ingested_at_utc") @db.Timestamptz ingestionSequence BigInt @unique @map("ingestion_sequence") providerVersion String @map("provider_version") normalizerVersion String @map("normalizer_version") validationVersion String @default("validation-v1") @map("validation_version") validityState ValidityState @default(VALID) @map("validity_state") validationReason String? @map("validation_reason") providerLatencyMs Int @default(0) @map("provider_latency_ms") stalenessScore Int @default(0) @map("staleness_score") lineageRawPayloadId String? @map("lineage_raw_payload_id") @db.Uuid qualityScore Decimal @default(100) @map("quality_score") @db.Decimal(5,2) qualityFlags String[] @default([]) @map("quality_flags") realBuyVolume BigInt? @map("real_buy_volume") realSellVolume BigInt? @map("real_sell_volume") legalBuyVolume BigInt? @map("legal_buy_volume") legalSellVolume BigInt? @map("legal_sell_volume") realBuyerCount Int? @map("real_buyer_count") realSellerCount Int? @map("real_seller_count") averageBuyPower Decimal? @map("average_buy_power") @db.Decimal(18, 6) schemaVersion String @map("schema_version") pipelineVersion String @map("pipeline_version") ingestionHash String @unique @map("ingestion_hash") createdAt DateTime @default(now()) @map("created_at") instrument Instrument @relation(fields: [instrumentId], references: [id], onDelete: Restrict) @@index([instrumentId, timestampUtc]) @@map("money_flow_snapshots") }
 
-model DeadLetterPayload {
-  id String @id @default(uuid()) @db.Uuid
-  rawPayloadId String @map("raw_payload_id") @db.Uuid
-  providerName String @map("provider_name")
-  failureStage String @map("failure_stage")
-  failureReason String @map("failure_reason")
-  payloadJson Json @map("payload_json")
-  stackTrace String? @map("stack_trace")
-  createdAt DateTime @default(now()) @map("created_at")
-  rawPayload RawApiPayload @relation(fields: [rawPayloadId], references: [id], onDelete: Restrict)
-  @@index([providerName, createdAt])
-  @@map("dead_letter_payloads")
-}
+model CorporateAction { id String @id @default(uuid()) @db.Uuid instrumentId String @map("instrument_id") @db.Uuid actionType String @map("action_type") effectiveDate DateTime @map("effective_date") @db.Date adjustmentFactor Decimal @map("adjustment_factor") @db.Decimal(18,8) adjustmentVersion String @default("corp-action-v1") @map("adjustment_version") metadataJson Json @map("metadata_json") createdAt DateTime @default(now()) @map("created_at") instrument Instrument @relation(fields: [instrumentId], references: [id], onDelete: Restrict) @@index([instrumentId, effectiveDate]) @@map("corporate_actions") }
+model InstrumentLifecycleEvent { id String @id @default(uuid()) @db.Uuid instrumentId String @map("instrument_id") @db.Uuid providerName String @map("provider_name") stateFrom LifecycleState @map("state_from") stateTo LifecycleState @map("state_to") eventTimestampUtc DateTime @map("event_timestamp_utc") @db.Timestamptz metadataJson Json? @map("metadata_json") createdAt DateTime @default(now()) @map("created_at") instrument Instrument @relation(fields: [instrumentId], references: [id], onDelete: Restrict) @@index([instrumentId, eventTimestampUtc]) @@map("instrument_lifecycle_events") }
+model CanonicalMarketTimeline { id String @id @default(uuid()) @db.Uuid instrumentId String @map("instrument_id") @db.Uuid intervalStartUtc DateTime @map("interval_start_utc") @db.Timestamptz intervalEndUtc DateTime @map("interval_end_utc") @db.Timestamptz marker String timelineHash String @map("timeline_hash") integrityFlags String[] @default([]) @map("integrity_flags") createdAt DateTime @default(now()) @map("created_at") instrument Instrument @relation(fields: [instrumentId], references: [id], onDelete: Restrict) @@unique([instrumentId, intervalStartUtc]) @@map("canonical_market_timeline") }
+model AnomalyEvent { id String @id @default(uuid()) @db.Uuid anomalyType String @map("anomaly_type") severity String affectedInstrumentId String? @map("affected_instrument_id") @db.Uuid timestampUtc DateTime @map("timestamp_utc") @db.Timestamptz provider String anomalyMetadata Json @map("anomaly_metadata") rawPayloadReference String? @map("raw_payload_reference") @db.Uuid createdAt DateTime @default(now()) @map("created_at") instrument Instrument? @relation(fields: [affectedInstrumentId], references: [id], onDelete: SetNull) rawPayload RawApiPayload? @relation(fields: [rawPayloadReference], references: [id], onDelete: SetNull) @@index([provider, timestampUtc]) @@map("anomaly_events") }
 
-model InstrumentAlias {
-  id String @id @default(uuid()) @db.Uuid
-  instrumentId String @map("instrument_id") @db.Uuid
-  providerName String @map("provider_name")
-  externalSymbol String @map("external_symbol")
-  externalId String? @map("external_id")
-  validFrom DateTime @map("valid_from") @db.Timestamptz
-  validTo DateTime? @map("valid_to") @db.Timestamptz
-  createdAt DateTime @default(now()) @map("created_at")
-  instrument Instrument @relation(fields: [instrumentId], references: [id], onDelete: Restrict)
-  @@index([providerName, externalSymbol])
-  @@map("instrument_aliases")
-}
-
-model MarketSession {
-  id                String   @id @default(uuid()) @db.Uuid
-  marketDate        DateTime @unique @map("market_date") @db.Date
-  marketOpenUtc     DateTime? @map("market_open_utc") @db.Timestamptz
-  marketCloseUtc    DateTime? @map("market_close_utc") @db.Timestamptz
-  isHoliday         Boolean  @default(false) @map("is_holiday")
-  specialConditions String?  @map("special_conditions")
-  createdAt         DateTime @default(now()) @map("created_at")
-
-  @@map("market_sessions")
-}
+model DeadLetterPayload { id String @id @default(uuid()) @db.Uuid rawPayloadId String @map("raw_payload_id") @db.Uuid providerName String @map("provider_name") failureStage String @map("failure_stage") failureReason String @map("failure_reason") payloadJson Json @map("payload_json") stackTrace String? @map("stack_trace") createdAt DateTime @default(now()) @map("created_at") rawPayload RawApiPayload @relation(fields: [rawPayloadId], references: [id], onDelete: Restrict) @@index([providerName, createdAt]) @@map("dead_letter_payloads") }
+model InstrumentAlias { id String @id @default(uuid()) @db.Uuid instrumentId String @map("instrument_id") @db.Uuid providerName String @map("provider_name") externalSymbol String @map("external_symbol") externalId String? @map("external_id") validFrom DateTime @map("valid_from") @db.Timestamptz validTo DateTime? @map("valid_to") @db.Timestamptz createdAt DateTime @default(now()) @map("created_at") instrument Instrument @relation(fields: [instrumentId], references: [id], onDelete: Restrict) @@index([providerName, externalSymbol]) @@map("instrument_aliases") }
+model MarketSession { id String @id @default(uuid()) @db.Uuid marketDate DateTime @unique @map("market_date") @db.Date marketOpenUtc DateTime? @map("market_open_utc") @db.Timestamptz marketCloseUtc DateTime? @map("market_close_utc") @db.Timestamptz isHoliday Boolean @default(false) @map("is_holiday") specialConditions String? @map("special_conditions") sessionType String @default("REGULAR") @map("session_type") createdAt DateTime @default(now()) @map("created_at") @@map("market_sessions") }
