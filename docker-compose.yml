@@ -1,29 +1,87 @@
-version: "3.9"
-
 services:
+  app:
+    build:
+      context: .
+      target: development
+    container_name: tsetmc-collector-app
+    restart: unless-stopped
+    command: npm run start:dev
+    env_file:
+      - env.example
+    environment:
+      PORT: ${PORT:-3000}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-nestdb}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      RAW_DATA_ROOT: /usr/src/app/raw-data
+      TYPEORM_SYNCHRONIZE: ${TYPEORM_SYNCHRONIZE:-true}
+      TSETMC_ENABLED: ${TSETMC_ENABLED:-true}
+      BRSAPI_ENABLED: ${BRSAPI_ENABLED:-false}
+    ports:
+      - '${PORT:-3000}:3000'
+    volumes:
+      - .:/usr/src/app
+      - app_node_modules:/usr/src/app/node_modules
+      - raw_data:/usr/src/app/raw-data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'wget -qO- http://localhost:3000/api/health >/dev/null 2>&1 || exit 1',
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+
   postgres:
     image: postgres:17-alpine
-    container_name: postgres
+    container_name: tsetmc-collector-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: nestdb
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${DB_NAME:-nestdb}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     ports:
-      - "5432:5432"
+      - '${DB_PORT:-5432}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-nestdb}',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:8-alpine
-    container_name: redis
+    container_name: tsetmc-collector-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - '${REDIS_PORT:-6379}:6379'
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
+  app_node_modules:
   postgres_data:
   redis_data:
+  raw_data:
