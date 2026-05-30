@@ -7,7 +7,7 @@ services:
     restart: unless-stopped
     command: npm run start:dev
     env_file:
-      - env.example
+      - .env.example
     environment:
       PORT: ${PORT:-3000}
       DB_HOST: postgres
@@ -21,6 +21,8 @@ services:
       TYPEORM_SYNCHRONIZE: ${TYPEORM_SYNCHRONIZE:-true}
       TSETMC_ENABLED: ${TSETMC_ENABLED:-true}
       BRSAPI_ENABLED: ${BRSAPI_ENABLED:-false}
+      TSETMC_OLD_BASE_URL: ${TSETMC_OLD_BASE_URL:-http://old.tsetmc.com}
+      TSETMC_CDN_BASE_URL: ${TSETMC_CDN_BASE_URL:-http://cdn.tsetmc.com}
     ports:
       - '${PORT:-3000}:3000'
     volumes:

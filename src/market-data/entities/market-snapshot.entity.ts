@@ -114,6 +114,9 @@ export class MarketSnapshotEntity {
   @Column({ type: 'jsonb', nullable: true })
   metadata?: Record<string, unknown>;
 
+  @Column({ name: 'raw_payload', type: 'jsonb', nullable: true })
+  rawPayloadData?: unknown;
+
   @ManyToOne(
     () => RawProviderPayloadEntity,
     (rawPayload) => rawPayload.snapshots,

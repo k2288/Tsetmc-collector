@@ -24,10 +24,8 @@ export default () => ({
   providers: {
     tsetmc: {
       enabled: (process.env.TSETMC_ENABLED ?? 'true') === 'true',
-      baseUrl: process.env.TSETMC_BASE_URL ?? 'https://cdn.tsetmc.com',
-      marketWatchPath:
-        process.env.TSETMC_MARKET_WATCH_PATH ??
-        '/api/ClosingPrice/GetMarketWatch?market=0&industrialGroup=',
+      oldBaseUrl: process.env.TSETMC_OLD_BASE_URL ?? 'http://old.tsetmc.com',
+      cdnBaseUrl: process.env.TSETMC_CDN_BASE_URL ?? 'http://cdn.tsetmc.com',
       timeoutMs: parseInt(process.env.TSETMC_TIMEOUT_MS ?? '10000', 10),
     },
     brsapi: {

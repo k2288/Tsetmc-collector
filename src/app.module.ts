@@ -15,7 +15,7 @@ import { StorageModule } from './storage/storage.module';
     ConfigModule.forRoot({
       isGlobal: true,
       load: [configuration],
-      envFilePath: ['.env', 'env.example'],
+      envFilePath: ['.env', '.env.example', 'env.example'],
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],

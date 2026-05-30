@@ -1,8 +1,11 @@
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 
+import { DailyPriceEntity } from '../market-data/entities/daily-price.entity';
 import { MarketSnapshotEntity } from '../market-data/entities/market-snapshot.entity';
 import { RawProviderPayloadEntity } from '../market-data/entities/raw-provider-payload.entity';
+import { RealLegalSnapshotEntity } from '../market-data/entities/real-legal-snapshot.entity';
+import { SymbolEntity } from '../market-data/entities/symbol.entity';
 
 export const createTypeOrmOptions = (
   configService: ConfigService,
@@ -13,7 +16,13 @@ export const createTypeOrmOptions = (
   username: configService.get<string>('database.username'),
   password: configService.get<string>('database.password'),
   database: configService.get<string>('database.database'),
-  entities: [RawProviderPayloadEntity, MarketSnapshotEntity],
+  entities: [
+    RawProviderPayloadEntity,
+    MarketSnapshotEntity,
+    SymbolEntity,
+    RealLegalSnapshotEntity,
+    DailyPriceEntity,
+  ],
   synchronize: configService.get<boolean>('database.synchronize'),
   logging: configService.get<boolean>('database.logging'),
   migrations: ['dist/migrations/*.js'],

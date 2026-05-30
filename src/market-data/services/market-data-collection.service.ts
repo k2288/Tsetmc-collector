@@ -107,6 +107,7 @@ export class MarketDataCollectionService {
               tradingDate: snapshot.tradingDate,
               dedupeKey: snapshot.dedupeKey,
               metadata: snapshot.metadata,
+              rawPayloadData: snapshot.metadata,
               rawPayload: rawEntity,
             }),
           );
