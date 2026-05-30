@@ -12,6 +12,7 @@ import { RetryService } from './common/retry.service';
 import { TsetmcProvider } from './providers/tsetmc/tsetmc.provider';
 import { BrsApiProvider } from './providers/brsapi/brsapi.provider';
 import { SnapshotNormalizer } from './market-data/normalizers/snapshot.normalizer';
+import { MarketController } from './market-data/market.controller';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { SnapshotNormalizer } from './market-data/normalizers/snapshot.normalize
     TypeOrmModule.forRootAsync({ useFactory: typeOrmConfigFactory }),
     TypeOrmModule.forFeature([RawPayload, NormalizedSnapshot])
   ],
+  controllers: [MarketController],
   providers: [
     MarketDataCollectorService,
     ArchiveService,
