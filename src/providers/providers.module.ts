@@ -6,18 +6,26 @@ import {
   MARKET_DATA_PROVIDERS,
   MarketDataProvider,
 } from './market-data-provider.interface';
-import { TsetmcProvider } from './tsetmc/tsetmc.provider';
+import { TsetmcHistoricalProvider } from './tsetmc/tsetmc-historical.provider';
+import { TsetmcInstrumentProvider } from './tsetmc/tsetmc-instrument.provider';
+import { TsetmcMarketProvider } from './tsetmc/tsetmc-market.provider';
+import { TsetmcRealLegalProvider } from './tsetmc/tsetmc-real-legal.provider';
+import { TsetmcRealtimeProvider } from './tsetmc/tsetmc-realtime.provider';
 
 @Module({
   providers: [
-    TsetmcProvider,
+    TsetmcMarketProvider,
+    TsetmcRealtimeProvider,
+    TsetmcInstrumentProvider,
+    TsetmcRealLegalProvider,
+    TsetmcHistoricalProvider,
     BrsApiProvider,
     {
       provide: MARKET_DATA_PROVIDERS,
-      inject: [ConfigService, TsetmcProvider, BrsApiProvider],
+      inject: [ConfigService, TsetmcMarketProvider, BrsApiProvider],
       useFactory: (
         configService: ConfigService,
-        tsetmcProvider: TsetmcProvider,
+        tsetmcProvider: TsetmcMarketProvider,
         brsApiProvider: BrsApiProvider,
       ): MarketDataProvider[] => {
         const providers: MarketDataProvider[] = [];
@@ -25,12 +33,20 @@ import { TsetmcProvider } from './tsetmc/tsetmc.provider';
           providers.push(tsetmcProvider);
         }
         if (configService.get<boolean>('providers.brsapi.enabled')) {
-          providers.push(brsApiProvider);
+          providers.push(brsApiProvider as unknown as MarketDataProvider);
         }
         return providers;
       },
     },
   ],
-  exports: [MARKET_DATA_PROVIDERS, TsetmcProvider, BrsApiProvider],
+  exports: [
+    MARKET_DATA_PROVIDERS,
+    TsetmcMarketProvider,
+    TsetmcRealtimeProvider,
+    TsetmcInstrumentProvider,
+    TsetmcRealLegalProvider,
+    TsetmcHistoricalProvider,
+    BrsApiProvider,
+  ],
 })
 export class ProvidersModule {}

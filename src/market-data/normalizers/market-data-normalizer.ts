@@ -64,12 +64,12 @@ export class MarketDataNormalizer {
       isin: this.stringValue(row.isin ?? row.cIsin),
       name: this.stringValue(row.l30 ?? row.name ?? row.instrumentTitle),
       lastPrice: this.numberValue(row.pDrCotVal ?? row.lastPrice),
-      closingPrice: this.numberValue(row.pClosing ?? row.closingPrice),
-      openingPrice: this.numberValue(row.priceFirst ?? row.openingPrice),
-      highPrice: this.numberValue(row.priceMax ?? row.highPrice),
-      lowPrice: this.numberValue(row.priceMin ?? row.lowPrice),
-      tradeVolume: this.numberValue(row.qTotTran5J ?? row.tradeVolume),
-      tradeValue: this.numberValue(row.qTotCap ?? row.tradeValue),
+      closingPrice: this.numberValue(row.pClosing ?? row.adjustedClose ?? row.closingPrice),
+      openingPrice: this.numberValue(row.priceFirst ?? row.openPrice ?? row.openingPrice),
+      highPrice: this.numberValue(row.priceMax ?? row.maxPrice ?? row.highPrice),
+      lowPrice: this.numberValue(row.priceMin ?? row.minPrice ?? row.lowPrice),
+      tradeVolume: this.numberValue(row.qTotTran5J ?? row.volume ?? row.tradeVolume),
+      tradeValue: this.numberValue(row.qTotCap ?? row.value ?? row.tradeValue),
       tradeCount: this.numberValue(row.zTotTran ?? row.tradeCount),
       sourceTimestamp,
       capturedAt,
@@ -119,6 +119,9 @@ export class MarketDataNormalizer {
   }
 
   private unwrapData(rawPayload: unknown): Record<string, unknown> {
+    if (Array.isArray(rawPayload)) {
+      return { data: rawPayload };
+    }
     if (!this.isRecord(rawPayload)) {
       return {};
     }
