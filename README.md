@@ -1,98 +1,98 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# TSETMC Collector — Phase 0
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Production-oriented NestJS infrastructure for provider-based Tehran Stock Exchange market data acquisition.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Phase 0 intentionally focuses only on data ingestion infrastructure. It does **not** implement strategies, indicators, machine learning, dashboards, or broker execution.
 
-## Description
+## Project structure
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
-
-```bash
-$ npm install
+```text
+src/
+  common/                    # Cross-cutting utilities such as retry/backoff
+  config/                    # Environment and TypeORM configuration
+  providers/
+    brsapi/                  # BRS API provider implementation (disabled by default)
+    tsetmc/                  # TSETMC provider implementation
+  market-data/
+    dto/                     # Normalized DTO contracts
+    entities/                # PostgreSQL entities for raw and normalized data
+    normalizers/             # Provider-specific normalization
+    services/                # Scheduler, collection, health, archival services
+  storage/                   # Redis integration
 ```
 
-## Compile and run the project
+## What it does
 
-```bash
-# development
-$ npm run start
+- Polls enabled market data providers every 30 seconds with `@nestjs/schedule`.
+- Fetches TSETMC market watch data through a provider abstraction.
+- Includes a BRS API provider that can be enabled with an API key.
+- Retries provider requests with exponential backoff.
+- Logs structured JSON events through NestJS logging.
+- Tracks provider health in memory for operational visibility.
+- Archives immutable raw payloads to the filesystem in UTC paths:
 
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+```text
+raw-data/<provider-name>/<YYYY-MM-DD>/<HH-mm-ss>-<hash>.json
 ```
 
-## Run tests
+- Stores raw provider payloads and normalized market snapshots in PostgreSQL.
+- Uses Redis `SET NX` keys plus PostgreSQL unique indexes for deduplication support.
+- Normalizes timestamps to UTC `Date` values.
+
+## Quick start
 
 ```bash
-# unit tests
-$ npm run test
+cp env.example .env
 
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+docker compose up
 ```
 
-## Deployment
+The API is exposed at:
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+- Health: <http://localhost:3000/api/health>
+- Swagger: <http://localhost:3000/docs>
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Environment
+
+All runtime settings are configured with environment variables. See [`env.example`](env.example) for defaults.
+
+Key variables:
+
+| Variable                   | Purpose                                                                            |
+| -------------------------- | ---------------------------------------------------------------------------------- |
+| `TSETMC_ENABLED`           | Enables the TSETMC provider. Defaults to `true`.                                   |
+| `TSETMC_BASE_URL`          | TSETMC base URL. Defaults to `https://cdn.tsetmc.com`.                             |
+| `TSETMC_MARKET_WATCH_PATH` | Market-watch endpoint path.                                                        |
+| `BRSAPI_ENABLED`           | Enables the BRS API provider. Defaults to `false`.                                 |
+| `BRSAPI_API_KEY`           | Required when BRS API provider is enabled.                                         |
+| `RAW_DATA_ROOT`            | Root directory for immutable raw payload archives.                                 |
+| `TYPEORM_SYNCHRONIZE`      | Development schema sync switch. Set to `false` for migration-managed environments. |
+
+## Data model
+
+### `raw_provider_payloads`
+
+Stores the full provider response with a content hash and filesystem archive path.
+
+### `market_snapshots`
+
+Stores normalized per-symbol market snapshots with indexed provider, symbol, and timestamp columns. `dedupe_key` is unique to make ingestion idempotent.
+
+## Docker services
+
+`docker compose up` starts:
+
+- NestJS app with hot reload
+- PostgreSQL 17 with persistent volume and health check
+- Redis 8 with append-only persistence and health check
+- Persistent `raw_data` volume for raw payload archival
+
+## Development commands
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm run start:dev
+npm run build
+npm run test
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+> Note: local development requires PostgreSQL and Redis matching the variables in `.env`.
